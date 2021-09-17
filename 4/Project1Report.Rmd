@@ -1,0 +1,367 @@
+---
+title: "Olympic Country Performance Investigation from 1976 to 2008"
+author: "480367983, 480256894, 500506541"
+subtitle: "Project 1"
+date: "University of Sydney | MATH1115 | Sep 2021"
+output:
+  html_document:
+    code_download: true # embed .Rmd file
+    toc: true  # table of contents
+    toc_depth: 3
+    toc_float: true # toc is always visible when scrolled
+    number_sections: false 
+    df_print: paged # format data frame outputs automatically
+    theme: sandstone # theme the doc
+    highlight: tango # theme syntax colouring
+---
+
+```{css newstyles, echo=FALSE}
+body {
+  color: black;
+}
+```
+
+# Executive Summary
+
+The aim of this report is to explore and present conclusions on diverse topics regarding the Olympic games. This has been done by manipulating the summer Olympics dataset (1976-2008) and coming up with meaningful graphical summaries to illustrate our results. 
+
+The main discoveries include the effects of a country’s coastline length upon an athlete’s performance in swimming, the positive correlation between a country’s GDP and its medal count and Australia’s greatest improvement in sports throughout the years which was observed to be swimming. 
+
+# Full Report
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Prepare packages
+if (!require("tidyverse"))    install.packages("tidyverse");    library(tidyverse)
+if (!require("RColorBrewer")) install.packages("RColorBrewer"); library(RColorBrewer)
+if (!require("ggrepel"))      install.packages("ggrepel");      library(ggrepel)
+if (!require("gapminder"))    install.packages("gapminder");    library(gapminder)
+if (!require("scales"))       install.packages("scales");       library(scales)
+if (!require("ggpubr"))       install.packages("ggpubr");       library(ggpubr)
+if (!require("lubridate"))    install.packages("lubridate");    library(lubridate)
+
+summer_olympic_medals = read.csv("data/Summer-Olympic-medals-1976-to-2008.csv")
+```
+
+## Initial Data Analysis (IDA)
+
+Data: `Summer-Olympic-medals-1976-to-2008.csv`
+
+- Source: [Kaggle](https://www.kaggle.com/divyansh22/summer-olympics-medals)
+- Possible issues:
+  - Some countries changed their Name/FIFA representation across Olympics, so some countries did not coalesce correctly.
+- Rows: Each represent a one bronze, silver, or gold medal given to an athlete over the 1976-2008 period during the Olympics.
+- Columns:
+  - `City`: City in which the Olympic Games were held.
+  - `Year`: Year in which the Olympic Games were held.
+  - `Sport`: Sport Category (eg. Aquatics, Athletics etc.)
+  - `Discipline`: The discipline within the sport (eg. Diving, Swimming etc.)
+  - `Event`: Event Name within the particular discipline (eg. 3m springboard, 10m platform etc.)
+  - `Athlete`: Name of the athlete that won in that event.
+  - `Gender`: The athlete's gender.
+  - `Country_Code`: The three letter [FIFA code](https://en.wikipedia.org/wiki/List_of_FIFA_country_codes) for the country the athlete represented at the time.
+  - `Country`: The name of the country the athlete represented.
+  - `Event_gender`: Genders which participated in the event. Male (M), Female(W) or Common Event(X).
+  - `Medal`: Medal (eg. Bronze, Silver, Gold)
+
+### Additional Datasets
+
+Data: `countries_coastline_length_filtered_olympics_final.xlsx`
+
+- Source: [Wikipedia](https://en.wikipedia.org/wiki/List_of_countries_by_length_of_coastline)
+- Possible Issues:
+  - Coastline length is fractal and hard to consistently measure.
+  - Missing, NA, or non-real lengths or areas were manually removed from dataset.
+- Rows: Each contains land and coastal information for a country in the Olympics.
+- Columns:
+  - `Country_Code`: Three letter [FIFA code](https://en.wikipedia.org/wiki/List_of_FIFA_country_codes) for country 
+  - `Coastline_Length_km`: Length of coastline in km
+  - `Land_Area_km_squared`: Area of country in $km^2$
+  - `Coast_Area_Ratio_m_per_km_squared`: Land_Area/Coastline_Length in $m/km^2$
+  
+Data: `country_codes.csv`
+
+- Source: [DataHub](https://datahub.io/core/country-codes)
+- Rows: Each contains the conversion of the three letter [FIFA code](https://en.wikipedia.org/wiki/List_of_FIFA_country_codes) for a country and its [ISO3166](https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes) representation
+- Columns:
+  - `FIFA`: Three letter FIFA code of country
+  - `ISO3166`: Three letter ISO3166 code of country
+  - `Name`: The Country's name
+  
+Data: `GDP.csv`
+
+- Source: [OECD](https://data.oecd.org/gdp/gross-domestic-product-gdp.htm)
+- Rows: Yearly observations for a country's GDP
+- Possible Issues:
+  - This dataset uses a different three letter code than our Olympics dataset, hence why some countries are missing. In future these should be matched correctly.
+- Columns:
+  - `LOCATION`: Three letter ISO3166 code of country
+  - `TIME`: Year for GDP observation
+  - `Value`: Value of GDP in total \$USD
+
+## Research question: Does a Country's GDP have an effect on number of Medals won?
+
+Gross Domestic Product provides a reflection of the economic output of a country. The dataset was taken from the OECD website. Figures reflect GDP in total \$USD, rather than the commonly used alternative of \$USD/capita. As such, the results should be influenced by the population size of each country as shown in question 1.
+
+```{r GDP}
+## IMPORT AND FIX UP GDP DATASET
+
+a <- 1976:2008 
+valid_years <- a[seq(1,33,4)] ## Valid years every 4th year starting at 1976
+
+GDP <- read.csv("data/GDP.csv")
+
+GDP <- GDP %>% filter(TIME %in% valid_years) #Filter out invalid years
+GDP <- GDP[c("ï..LOCATION","TIME","Value")] #select only GDP country and year
+
+view(GDP)
+GDP_mean <- GDP %>% group_by(ï..LOCATION) %>% summarise(mean = mean(Value), count = n())
+
+# Comment this out to exclude countries with 0 medals
+summer_olympic_medals$Country_Code = factor(summer_olympic_medals$Country_Code)
+
+olympic_tally <- summer_olympic_medals %>%
+  filter(Medal == "Gold",          # Consider gold medals only
+         !is.na(Country_Code)) %>% # Some Countries are invalid as the levels don't match any more
+  # filter(is.na(Country_Code)) %>%  # Use this to see the that are na
+  count(Country_Code, .drop=F)
+
+
+intersection <- intersect(GDP_mean$ï..LOCATION,olympic_tally$Country_Code)
+GDP_final <- GDP_mean %>% filter(ï..LOCATION %in% intersection)
+olympics_final <- olympic_tally %>% filter(Country_Code %in% intersection)
+
+final <- cbind(GDP_final, olympics_final$n)
+final <- final %>% mutate()
+```
+
+```{r pressure, echo=FALSE}
+ggplot(final, aes(x=olympics_final$n, y=mean)) + 
+  geom_smooth(formula = y ~ x, method='lm', color = 'black', se = FALSE, size =0.5) +
+  aes(colour = factor(ï..LOCATION)) +
+  theme(
+    legend.position = "none",
+    panel.background = element_rect(fill = "white", colour = "grey50"),
+    panel.border = element_blank()) +
+  ggtitle('GDP to medals 76-08') +
+  xlab('Medals') + 
+  ylab('GDP $USD') +
+  geom_point() +
+  geom_text(label = final$ï..LOCATION, check_overlap = TRUE, nudge_x = 35)
+```
+
+### Results
+
+The strong correlation between GDP and medal performance is supported by both our primary analysis and the academic literature. The impact of GDP is always positive resulting from a greater ability to provide athletes with financial support, training methods and equipment (Woitek, 2008). Outliers in the data may represent instances where countries diverted resources to specific sports; making more efficient use of the funding available to them (Rathke & Woitek, 2008). It is also important to note the poor performance relative to GDP of countries such as India, Brazil and Japan. In this instance normalising to give a reflection of GDP/capita may bring these results more into line, as particularly India and Brazil have high population relative to their GDP. 
+
+## Research question: Does a Country's Coastline Length correlate to an increased tally of Swimming Medals won?
+
+A longer coastline may provide more opportunities to swim, or a greater incentive to learn to swim for the general population. So does this result in better athlete performances at the Olympics?
+
+```{r}
+country_coastlines = readxl::read_excel("data/countries_coastline_length_filtered_olympics_final.xlsx")
+# https://datahub.io/core/country-codes#curl
+iso_to_fifa_country_codes = read.csv("data/country_codes.csv")
+
+# Inner-join the two datasets
+olympic_dataset = merge(
+  x = country_coastlines,
+  y = summer_olympic_medals,
+  by = "Country_Code")
+
+# From https://www.rdocumentation.org/packages/gapminder/versions/0.3.0/topics/country_colors
+# Grabs the country colours and convert them to the FIFA format which is what
+# the olympic datasets have their Country_Codes set to.
+data.frame(
+  gapminder,
+  cc = I(country_colors[match(gapminder$country, names(country_colors))])) %>%
+    left_join(country_codes, by = "country") %>%
+    select(c(iso_alpha, cc)) %>%
+    rename(Country_Code = iso_alpha) %>%
+    distinct(Country_Code, .keep_all = T) %>%              # Some countries have two distinct colours so this chooses the first
+    left_join(iso_to_fifa_country_codes,                   # Convert ISO Country codes to FIFA
+              by = c("Country_Code" = "ISO3166")) %>%
+    select(FIFA, cc) %>%
+    rename(Country_Code = FIFA) ->
+    code_and_colour
+
+# Tell R that the Country_Code present are not representative of all the levels
+# that could have won medals at the Olympics. This tell R to count any levels
+# that have no observations to show up as count=0.
+olympic_dataset$Country_Code = factor(olympic_dataset$Country_Code, levels = country_coastlines$Country_Code)
+
+olympic_dataset %>%
+  select(Country_Code, Discipline, Medal) %>%
+  filter(Discipline == "Swimming",
+         Medal == "Gold") %>%                                 # Consider gold medals only
+  count(Country_Code, .drop = F) %>%                          # Take a count of medals. Include 0 counts
+  # count(Country_Code) %>%                                   # Take a count of medals. Exclude 0 counts
+  left_join(country_coastlines, by = "Country_Code") %>%      # Assign the medal tally to each country coastline data
+  rename(                                                     # Rename Columns
+    Medal_Tally = n,
+    Coastline_Length = Coastline_Length_km,                   # Units km
+    Land_Area = Land_Area_km_squared,                         # Units km^2
+    Coast_Area_Ratio = Coast_Area_Ratio_m_per_km_squared) %>% # Units m/km^2
+  left_join(code_and_colour, by = "Country_Code") ->          # Add the country's colour
+  medal_tally
+
+# Creates a colour function for colouring the missing country colours.
+medal_tally_row_count = nrow(medal_tally)
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+
+# Variable cc uses country colour if it exists in the gapminder::country_colors
+# dataset. Otherwise, we use a random palette from RColorBrewer. We do this by
+# replacing the NA values.
+medal_tally %>%
+  mutate(cc = ifelse(is.na(cc), getPalette(medal_tally_row_count), cc)) ->
+  medal_tally
+```
+
+```{r warning=FALSE}
+medal_tally %>%
+  ggplot(aes(Coastline_Length, Medal_Tally)) +
+  geom_point(alpha = 0.7, aes(color = cc)) +             # Add the Scatter plot. Dot colours is the country colour
+  scale_y_continuous(trans=scales::pseudo_log_trans()) + # Make the y scale logarithmic. https://stackoverflow.com/a/56122978
+  geom_text_repel(aes(label = Country, color = cc),      # Add the Country to each point
+                  size = 3,
+                  max.overlaps = 15) + 
+  labs(x = "Coastline Length (km)",
+       y = "Swimming Event Gold Medals",
+       title = "Country's Olympic Swimming Gold Medal Tally to Coastline Length") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  geom_smooth(formula = y ~ x, method = "lm", se = FALSE) +
+  geom_blank()
+```
+
+### Results
+
+The regression line seems to suggest that there is a correlation between the coastline length and an athlete's performance in swimming events at the Olympics. Most countries with short coastlines never got gold medals. We can see that countries with a 10000-20000km long coastline have at least won 1 or more medals at the Olympics. A 2009-2011 study found that children were more likely to achieve a higher level in the Swim and Survive Program either, with a swimming pool at home, with private lessons, or having gone to the beach in the last 12 months (Franklin, Richard C.; Peden, Amy E.; Hodges, Sean; Lloyd, Nicole; Larsen, Penny; O'Connor, Cherry; and Scarr, Justin, 2015).
+
+### Conclusion
+
+The Gold Medal Tally axis is logarithmic, with the USA heavily overshadowing all other countries in the swimming events. Countries with longer coastlines do not come close. Thus, we suggest that even though there is a correlation, we believe there are other factors in play that are causing these results, like GDP, population (not researched), or swimming culture.
+
+## Research question: Has Australia improved in any sport throughout the Olympic games (1976-2008)? 
+
+We compare Australia's total medal count from the top four sports with comparison to the top country in each of those sports. We are looking at Swimming, Athletics, Cycling and Sailing.
+
+```{r cleaning/filtering, include = FALSE}
+#checking if any of the columns I need have NA entries 
+sum(is.na(summer_olympic_medals$Sport))
+sum(is.na(summer_olympic_medals$Discipline))
+sum(is.na(summer_olympic_medals$Country))
+sum(is.na(summer_olympic_medals$Medal))
+```
+
+```{r Athletics}
+#In the following code we look at the Athletics results for USA and Australia: 
+
+AU_athletic = summer_olympic_medals %>% 
+  #only selecting columns of interest
+  dplyr::select(Year, Discipline, Country, Country_Code, Medal) %>% 
+  #change Year column from a factor to a data (year)
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  #filtering for Australia's athletics results only 
+  dplyr::filter(Discipline == "Athletics", Country == "Australia") %>% 
+  #counting the number of medals per year 
+  count(Year) %>% 
+  #add a column country that will be useful for the graphing
+  add_column(Country = "AUS")
+
+USA_athletic = summer_olympic_medals %>% 
+  dplyr::select(Year, Discipline, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Discipline == "Athletics", Country == "United States") %>% count(Year) %>% add_column(Country = "USA")
+
+#create plot using 3 variables  
+athletics = bind_rows(AU_athletic, USA_athletic) %>% ggplot() + 
+  geom_point() + aes(Year,n,colour = Country) +
+  #adding line of best fit 
+  geom_smooth(method = "lm", se = FALSE) + labs(title = 'Athletics',y = 'Medal number') + theme_bw() + scale_color_manual(breaks = c('AUS', 'USA'),values = c('#00CC00','#3399FF'))
+
+```
+ 
+```{r Swimming}
+#In the following code we look at the swimming results for USA and Australia:
+
+AU_swimming = summer_olympic_medals %>% 
+  dplyr::select(Year, Discipline, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Discipline == "Swimming", Country == "Australia") %>% 
+  count(Year) %>% add_column(Country = "AUS")
+
+USA_swimming = summer_olympic_medals %>% 
+  dplyr::select(Year, Discipline, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Discipline == "Swimming", Country == "United States") %>% count(Year) %>% add_column(Country = "USA")
+#using the pipe function lets us put a line of best fit through it 
+#combine the 3 data sets and pipe it into ggplot 
+swim = bind_rows(AU_swimming, USA_swimming) %>% ggplot() + 
+  geom_point() + aes(Year,n,colour = Country)  + geom_smooth(method = "lm", se = FALSE) + labs(title = 'Swimming',y = 'Medal number') + theme_bw() +scale_color_manual(breaks = c('AUS', 'USA'),values = c('#00CC00','#3399FF'))
+```
+ 
+```{r Cycling}
+#In the following code we look at the Cycling results for Australia and UK:
+
+AU_cycle = summer_olympic_medals %>% 
+  dplyr::select(Year, Sport, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Sport == "Cycling", Country == "Australia") %>%
+  count(Year) %>% add_column(Country = "AUS")
+
+UK_cycle = summer_olympic_medals %>% 
+  dplyr::select(Year, Sport, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Sport == "Cycling", Country == "United Kingdom") %>% count(Year) %>% add_column(Country = "GBR")
+
+cycling = bind_rows(AU_cycle, UK_cycle) %>% ggplot() + 
+  geom_point() + aes(Year,n,colour = Country)  + geom_smooth(method = "lm", se = FALSE) + labs(title = 'Cycling',y = 'Medal number') + theme_bw() + scale_color_manual(breaks = c('AUS', 'GBR'),values = c('#00CC00','#CC0000'))
+```
+
+```{r Sailing}
+#In the following code we look at the Sailing results for USA and Australia: 
+
+AU_sail = summer_olympic_medals %>% 
+  dplyr::select(Year, Sport, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Sport == "Sailing", Country == "Australia") %>%
+  count(Year) %>% add_column(Country = "AUS")
+
+USA_sail = summer_olympic_medals %>% 
+  dplyr::select(Year, Sport, Country, Country_Code, Medal) %>% 
+  mutate(Year = as.Date(as.character(Year), "%Y")) %>% 
+  dplyr::filter(Sport == "Sailing", Country == "United States") %>% count(Year) %>% add_column(Country = "USA")
+
+sailing = bind_rows(AU_sail, USA_sail) %>% ggplot() + 
+  geom_point() + aes(Year,n,colour = Country)  + geom_smooth(method = "lm", se = FALSE) + labs(title = 'Sailing',y = 'Medal number') + theme_bw() +  scale_color_manual(breaks = c('AUS', 'USA'),values = c('#00CC00','#3399FF'))
+```
+
+```{r merging graphs, message=FALSE, warning=FALSE}
+#using this package we can put all the graphs together 
+ggarrange(swim, athletics, sailing, cycling, ncol=2, nrow=2, common.legend = FALSE, legend="right")
+```
+
+### Results 
+
+Australia's steepest increase in swimming shows their greatest improvement. Australia received only 1 medal in 1976 and slowly progressed to higher numbers each year. In athletics, Australia's medals stayed almost constant, with an average of 3 medals/year. Looking at the sailing graph, Australia improved over time winning up to 6 medals in 2008. In cycling, the line is misleading because Australia improved significantly until 2004 but the very low medal count in 2008 highly impacted the relation. 
+
+Australia's great improvement in swimming was a result of the overall increased focus upon more professional training  and funding towards sports in which Australia can win more medals (Euro news, 2016)(IOC, 2020). 
+
+### Conclusion
+
+In conclusion, Australia improved the most in swimming due to the overall increase of attention towards swimming athletes and swimming achievements. In future studies looking at data from more years or only looking at gold medals received could provide a wider picture of Australia's sport improvement. 
+
+# References
+
+- Rathke, Alexander & Woitek, Ulrich. (2007). Economics and the Summer Olympics: An Efficiency Analysis. Journal of Sports Economics - J SPORT ECON. 9. 520-537. 10.1177/1527002507313743. DOI: [https://doi.org/10.1177/1527002507313743](https://doi.org/10.1177/1527002507313743). Retrieved from [https://www.researchgate.net/publication/240280632_Economics_and_the_Summer_Olympics_An_Efficiency_Analysis](https://www.researchgate.net/publication/240280632_Economics_and_the_Summer_Olympics_An_Efficiency_Analysis)
+
+- Celik, Onur. (2014). Estimating the Determinants of Summer Olympic Game Performance. International Journal of Applied Economics. 11. 39-47. Retrieved from [https://www.researchgate.net/publication/267391137_Estimating_the_Determinants_of_Summer_Olympic_Game_Performance](https://www.researchgate.net/publication/267391137_Estimating_the_Determinants_of_Summer_Olympic_Game_Performance)
+
+- Franklin, Richard C.; Peden, Amy E.; Hodges, Sean; Lloyd, Nicole; Larsen, Penny; O'Connor, Cherry; and Scarr, Justin (2015) "Learning to Swim: What Influences Success?," International Journal of Aquatic Research and Education: Vol. 9 : No. 3 , Article 2. DOI: [https://doi.org/10.25035/ijare.09.03.02](https://doi.org/10.25035/ijare.09.03.02) Retrieved from [https://scholarworks.bgsu.edu/ijare/vol9/iss3/2](https://scholarworks.bgsu.edu/ijare/vol9/iss3/2)
+
+- Dr Rhonda Jolly (2008), Social Policy Section, The modern Olympics: an overview. Research Paper no. 32 2007–08. Retrieved from [https://www.aph.gov.au/binaries/library/pubs/rp/2007-08/08rp32.pdf](https://www.aph.gov.au/binaries/library/pubs/rp/2007-08/08rp32.pdf)
+
+- Euronews. (2016, July 28). Why are Australians so good at sport? Retrieved from [https://www.euronews.com/2016/07/28/why-are-australians-so-good-at-sport](https://www.euronews.com/2016/07/28/why-are-australians-so-good-at-sport)
+
+- Australia’s high-performance sport policy. (2020, November 20). International Olympic Committee. Retrieved from [https://olympics.com/ioc/legacy/sydney-2000/australia-s-high-performance-sport-policy](https://olympics.com/ioc/legacy/sydney-2000/australia-s-high-performance-sport-policy)
+
