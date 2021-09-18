@@ -43,14 +43,16 @@ head(gstreams_sorted, n = 10L) %>%
   geom_blank()
 ```
 
-![](interrogation_files/figure-gfm/unnamed-chunk-1-1.png)<!-- --> It is
-quite obvious that Hip-Hop has successfully hit over 3.5 billion streams
-from 2020 and being the \#1 favorite genres that people like, with Pop
-music followed with nearly 2 billion plays, the Dance Pop is located in
-third with 1.5 billion streams and that’s all the genres breaking
-through 1 billion streaming. Reggaeton is quite welcomed and hit over
-500 million plays but Adult Standards, EDM, K-Pop, R&B and Rock are just
-fluctuated below 500 million. Although the sum of all other genres,
-which have less than 100 million plays, has made it over 500 million
-streams, but that’s 30 genres in total. So it is quite easy to conclude
-that Hip-Hop is the undoubtable winner of hitting the most streams.
+![](interrogation_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+It is quite obvious that Hip-Hop has successfully hit over 3.5 billion
+streams from 2020 and being the \#1 favorite genres that people like,
+with Pop music followed with nearly 2 billion plays, the Dance Pop is
+located in third with 1.5 billion streams and that’s all the genres
+breaking through 1 billion streaming. Reggaeton is quite welcomed and
+hit over 500 million plays but Adult Standards, EDM, K-Pop, R&B and Rock
+are just fluctuated below 500 million. Although the sum of all other
+genres, which have less than 100 million plays, has made it over 500
+million streams, but that’s 30 genres in total. So it is quite easy to
+conclude that Hip-Hop is the undoubtable winner of hitting the most
+streams.
