@@ -1,14 +1,44 @@
 ---
-title: "Interrogating G2 RQ4"
-output: rmarkdown::github_document
+title: "Interrogation"
+subtitle: "- feats. Group 2"
+author:
+- Jack Gleeson 480382724
+- Jelly Dongyi Guo 470033070
+- Mayira Noori 500473922
+- Yasheita Roy 480358833
+date: "University of Sydney | MATH1115 Group 22 | Sept. 2021"
+output:
+  html_document:
+    code_download: true # embed .Rmd file
+    toc: true  # table of contents
+    toc_depth: 3
+    toc_float: true # toc is always visible when scrolled
+    number_sections: false 
+    df_print: paged # format data frame outputs automatically
+    theme: sandstone # theme the doc
+    highlight: tango # theme syntax colouring
 ---
+
+```{css newstyles, echo=FALSE}
+body {
+  color: black;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE) 
+library(tidyverse)
+```
+
+## Existing Research Question
+
+- This question is Group 2 Research Question 4
 
 > **What genre of music do listeners on Spotify enjoy listening to the most?**
 
 As an musician or stakeholder involved in the music industry, it is always essential to acknowledge that what the listeners or users would like to enjoy, determining which genres are the most welcomed in general is always helpful to specify what is the market looks like now and predict what will become the customers' next favorite hit in the future, and this can be easily demonstrated with a bar chart:
 
 ```{r message=FALSE, warning=FALSE}
-library(tidyverse)
 spotify <- read.csv("data/2/2.csv")
 spotify %>% 
   mutate(Streams = as.numeric(gsub(",", "", Streams))) %>% 
@@ -39,4 +69,30 @@ head(gstreams_sorted, n = 10L) %>%
   geom_blank()
 ```
 
-It is quite obvious that Hip-Hop has successfully hit over 3.5 billion streams from 2020 and being the #1 favorite genres that people like, with Pop music followed with nearly 2 billion plays, the Dance Pop is located in third with 1.5 billion streams and that's all the genres breaking through 1 billion streaming. Reggaeton is quite welcomed and hit over 500 million plays but Adult Standards, EDM, K-Pop, R&B and Rock are just fluctuated below 500 million. Although the sum of all other genres, while each of them has less than 100 million plays, has made it over 500 million streams in total, but that's 30 genres combined in order to reach it. So it is quite easy to conclude that Hip-Hop is the un-doubtful winner of hitting the most streams.
+It is quite obvious that Hip-Hop has successfully hit over 3.5 billion streams from 2020 and being the #1 favorite genres that people like, with Pop music followed with nearly 2 billion plays, the Dance Pop is located in third with 1.5 billion streams and that's all the genres breaking through 1 billion streaming. Reggaeton is quite welcomed and hit over 500 million plays but Adult Standards, EDM, K-Pop, R&B and Rock are just fluctuating below 500 million. Although the sum of all other genres, while each of them has less than 100 million plays, has made it over 500 million streams in total, but that's 30 genres combined in order to reach it. So it is quite easy to conclude that Hip-Hop is the un-doubtful winner of hitting the most streams.
+
+## New Research Question
+
+> **Is there a correlation between a songs popularity and its Energy? I.e. Are more energetic songs more popular? **
+
+```{r message=FALSE, warning=FALSE} 
+ggplot(spotify, aes(x=Energy, y=Popularity, colour=Genre)) + 
+geom_point() + 
+theme_bw() + 
+stat_smooth(method = "lm", col = "black") + 
+xlab("Energy") + 
+ylab("Popularity") +  
+ggtitle("Popularity vs. Energy") 
+```
+
+```{r message=FALSE, warning=FALSE} 
+cor(spotify$Energy, spotify$Popularity)  
+```
+
+```{r message=FALSE, warning=FALSE} 
+cor.test(spotify$Popularity, spotify$Energy)
+```
+
+This new research question attempts to find is there exists a correlation between the popularity and energy of songs of different genres. The conception of popular music within the current context is that energy levels are increasing for popular songs (Dredge, 2013), this is common for genres such as pop and hip hop. In terms of energy, it typically represents a measure of intensity and activity within the song. These types of songs are often perceptually recognized as fast, noisy and loud.
+
+As seen from the plot above there is a weak positive correlation and a correlation of 0.09 indicates that the correlation between the 2 variables is weak indicating that popular songs are not more energetic. Interestingly we can also see that certain popular genres such as hip hop and pop are primarily located in the 3rd quadrant of the energy x-axis indicating that popular genres are of higher energy. In performing Pearson’s correlation test we find that a p-value of 0.001935 indicates we accept the alternative hypothesis at 5% significance subsequently rejecting the null hypothesis that there is no linear relationship between the popularity of a song and its energy levels.
